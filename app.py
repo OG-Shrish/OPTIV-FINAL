@@ -694,7 +694,7 @@ elif st.session_state.get("active_view") == "visuals":
         method_counter = {}
         confidence_counter = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
         for f in active_doc.pii_findings:
-            m_label = " + ".join(f.detection_method) if f.detection_method else "Pattern Match"
+            m_label = "+".join(f.detection_method) if f.detection_method else "Pattern Match"
             method_counter[m_label] = method_counter.get(m_label, 0) + 1
             conf_str = f.confidence_level.value if hasattr(f.confidence_level, "value") else str(f.confidence_level)
             confidence_counter[conf_str] = confidence_counter.get(conf_str, 0) + 1
@@ -1192,7 +1192,7 @@ else:
                 all_findings_rows.append({
                     "Severity": f.severity.value if hasattr(f.severity, "value") else str(f.severity),
                     "PII Type": f.pii_type.value if hasattr(f.pii_type, "value") else str(f.pii_type),
-                    "Method": " + ".join(f.detection_method),
+                    "Method": "+".join(f.detection_method),
                     "Location": f.location,
                     "Entity (Masked/Reviewed)": display_val,
                 })
@@ -1287,7 +1287,7 @@ else:
                         "Location": f.location,
                         "PII Type": f.pii_type.value if hasattr(f.pii_type, "value") else str(f.pii_type),
                         "Severity": f.severity.value if hasattr(f.severity, "value") else str(f.severity),
-                        "Method": " + ".join(f.detection_method),
+                        "Method": "+".join(f.detection_method),
                         "Entity (Masked)": f.masked_text,
                         "Explanation": f.explanation,
                     })
@@ -1304,7 +1304,7 @@ else:
                     traceability_data.append({
                         "Source Location": f.location,
                         "Detected PII Type": f.pii_type.value if hasattr(f.pii_type, "value") else str(f.pii_type),
-                        "Detection Methodology": " + ".join(f.detection_method),
+                        "Detection Methodology": "+".join(f.detection_method),
                         "Semantic Replacement": tag,
                         "Risk Rationale": f.explanation,
                     })

@@ -128,13 +128,17 @@ class PIIEngine:
 
             if has_overlap:
                 # Merge current into last
-                # 1. Combine methods
-                combined_methods = list(dict.fromkeys(last.detection_method + current.detection_method))
+                # 1. Combine methods with canonical priority: NER -> REGEX -> CONTEXT
+                METHOD_ORDER = {"NER": 1, "REGEX": 2, "CONTEXT": 3}
+                combined_methods = sorted(
+                    list(dict.fromkeys(last.detection_method + current.detection_method)),
+                    key=lambda m: METHOD_ORDER.get(m, 99)
+                )
                 
                 # 2. Boost confidence when multiple methods agree
                 base_conf = max(last.confidence, current.confidence)
                 if len(combined_methods) > 1:
-                    boosted_conf = min(0.99, base_conf + 0.05)
+                    boosted_conf = min(0.99, base_conf + 0.05 * (len(combined_methods) - 1))
                 else:
                     boosted_conf = base_conf
 
@@ -154,7 +158,7 @@ class PIIEngine:
 
                 # If methods combined, update explanation
                 if len(combined_methods) > 1:
-                    method_str = " + ".join(combined_methods)
+                    method_str = "+".join(combined_methods)
                     best_explanation = f"Cross-verified by {method_str}: {best_explanation}"
 
                 # 5. Span boundaries (pick the span that best bounds the entity text)

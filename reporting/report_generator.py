@@ -88,7 +88,7 @@ class ReportGenerator:
                     f.severity.value if hasattr(f.severity, "value") else str(f.severity),
                     f.pii_type.value if hasattr(f.pii_type, "value") else str(f.pii_type),
                     f"{f.confidence * 100:.1f}%",
-                    " + ".join(f.detection_method),
+                    "+".join(f.detection_method),
                     f.file_name,
                     f.location,
                     f.masked_text,

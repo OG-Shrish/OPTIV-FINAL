@@ -4,12 +4,24 @@ from typing import List, Dict, Any
 
 from models.schemas import PIIFinding, PIIType, Severity, ConfidenceLevel
 from utils.helpers import validate_luhn, is_valid_ipv4, mask_sensitive_value
+from detection.ner_detector import is_valid_person_entity
 
 
 # Precompiled regex patterns for performance
 # Boundary-enforced email regex ending with valid 2+ character TLD
 EMAIL_REGEX = re.compile(
     r"\b[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}\b"
+)
+
+# Person naming patterns
+NAME_STANDALONE_REGEX = re.compile(
+    r"(?m)^[ \t]*([A-Z][a-z]{1,25}(?:\s+[A-Z][a-z]{1,25}){0,3})[ \t\r]*$"
+)
+NAME_HONORIFIC_REGEX = re.compile(
+    r"\b(?:Mr\.?|Mrs\.?|Ms\.?|Miss|Dr\.?|Prof\.?|Shri|Smt\.?)[ \t]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b"
+)
+NAME_ROLE_REGEX = re.compile(
+    r"(?i)\b(?:Candidate(?:\s+Name)?|Applicant(?:\s+Name)?|Passenger(?:\s+Name)?|Name|Full\s+Name|First\s+Name|Last\s+Name|Traveler|Customer|Contact|Author|Developer|Engineer|Prepared\s+by|Submitted\s+by|Doctor|Patient)\s*[:=-][ \t]*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})"
 )
 
 # Phone patterns:
@@ -290,6 +302,87 @@ class RegexDetector:
                         severity=Severity.HIGH,
                         explanation="Telephone numbering plan pattern.",
                         masked_text=mask_sensitive_value(val, "PHONE"),
+                    )
+                )
+
+        # 8. Person Names (Standalone candidate lines, honorific salutations, and proper names)
+        # Dedicated standalone candidate name lines (e.g. 'Shrish', 'Vikas Ahankari', 'Sarah Connor')
+        for match in NAME_STANDALONE_REGEX.finditer(text):
+            candidate = match.group(1).strip()
+            if placeholder_pattern.match(candidate):
+                continue
+            if is_valid_person_entity(candidate):
+                findings.append(
+                    PIIFinding(
+                        finding_id=f"rgx_person_line_{block_order}_{match.start(1)}",
+                        document_id=document_id,
+                        file_name=file_name,
+                        location=location,
+                        block_order=block_order,
+                        start=match.start(1),
+                        end=match.end(1),
+                        text=candidate,
+                        pii_type=PIIType.PERSON,
+                        confidence=0.90,
+                        confidence_level=ConfidenceLevel.HIGH,
+                        detection_method=["REGEX"],
+                        severity=Severity.HIGH,
+                        explanation="Personal candidate name matched via structural naming pattern.",
+                        masked_text=mask_sensitive_value(candidate, "PERSON"),
+                    )
+                )
+
+        # Honorific / Salutation Person Names (e.g. 'Mr. John Smith', 'Dr. Watson', 'Shri Shrish')
+        for match in NAME_HONORIFIC_REGEX.finditer(text):
+            candidate = match.group(1).strip()
+            if placeholder_pattern.match(candidate):
+                continue
+            if is_valid_person_entity(candidate):
+                findings.append(
+                    PIIFinding(
+                        finding_id=f"rgx_person_hon_{block_order}_{match.start(1)}",
+                        document_id=document_id,
+                        file_name=file_name,
+                        location=location,
+                        block_order=block_order,
+                        start=match.start(1),
+                        end=match.end(1),
+                        text=candidate,
+                        pii_type=PIIType.PERSON,
+                        confidence=0.92,
+                        confidence_level=ConfidenceLevel.HIGH,
+                        detection_method=["REGEX"],
+                        severity=Severity.HIGH,
+                        explanation="Personal name identified via honorific title salutation pattern.",
+                        masked_text=mask_sensitive_value(candidate, "PERSON"),
+                    )
+                )
+
+        # Role/cue preceded names (e.g. 'Candidate Name: Sarah Connor')
+        for match in NAME_ROLE_REGEX.finditer(text):
+            candidate = match.group(1).strip()
+            if placeholder_pattern.match(candidate):
+                continue
+            if any(f.start <= match.start(1) and f.end >= match.end(1) for f in findings if f.pii_type == PIIType.PERSON):
+                continue
+            if is_valid_person_entity(candidate):
+                findings.append(
+                    PIIFinding(
+                        finding_id=f"rgx_person_role_{block_order}_{match.start(1)}",
+                        document_id=document_id,
+                        file_name=file_name,
+                        location=location,
+                        block_order=block_order,
+                        start=match.start(1),
+                        end=match.end(1),
+                        text=candidate,
+                        pii_type=PIIType.PERSON,
+                        confidence=0.92,
+                        confidence_level=ConfidenceLevel.HIGH,
+                        detection_method=["REGEX"],
+                        severity=Severity.HIGH,
+                        explanation="Personal name identified via organizational role or candidate label pattern.",
+                        masked_text=mask_sensitive_value(candidate, "PERSON"),
                     )
                 )
 

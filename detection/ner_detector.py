@@ -27,6 +27,9 @@ NON_PERSON_WORDS = {
     "description", "details", "detail", "summary", "overview", "introduction",
     "conclusion", "note", "notes", "notice", "remark", "remarks", "policy", "terms",
     "condition", "conditions", "rule", "rules", "information", "info", "guidelines",
+    "name", "names", "candidate", "candidates", "applicant", "applicants", "user", "users",
+    "client", "clients", "attendee", "attendees", "author", "authors", "developer", "developers",
+    "engineer", "engineers", "degree", "bachelor", "master", "phd", "engineering", "science",
     # Travel, airline, transit & ticket terms
     "passport", "visa", "cabin", "baggage", "luggage", "seat", "seats", "ticket", "tickets",
     "boarding", "flight", "flights", "gate", "gates", "terminal", "airport", "airports",
@@ -96,7 +99,32 @@ NON_PERSON_WORDS = {
     "hobbies", "hobby", "languages", "language", "declaration", "declarations",
     # Corporate hierarchy & executive title acronyms
     "dgm", "gm", "agm", "vp", "avp", "svp", "evp", "ceo", "cto", "cfo", "coo", "cio", "ciso",
-    "cmo", "cro", "hr", "mgr", "director", "president"
+    "cmo", "cro", "hr", "mgr", "director", "president",
+    # Conversational, personal pronouns & section prepositions
+    "about", "me", "myself", "who", "what", "why", "how", "when", "where", "which", "whose",
+    "my", "you", "your", "he", "him", "his", "she", "her", "we", "our", "us", "they", "them", "their", "it", "its",
+    # Cloud, tech enterprises, & infrastructure platforms
+    "microsoft", "azure", "aws", "amazon", "google", "cloud", "gcp", "oracle", "ibm", "cisco",
+    "vmware", "salesforce", "apple", "intel", "amd", "nvidia", "meta", "redhat",
+    # Containerization, virtualization & DevOps tools
+    "docker", "compose", "kubernetes", "k8s", "helm", "podman", "vagrant", "virtualbox",
+    "jenkins", "ansible", "terraform", "puppet", "chef", "circleci", "travis",
+    # Cybersecurity, penetration testing & security tools
+    "burp", "suite", "wireshark", "metasploit", "nmap", "nessus", "splunk", "snort", "suricata",
+    "kali", "zenmap", "hydra", "nikto", "sqlmap", "ghidra", "ida", "radare", "owasp", "postman",
+    "zap", "siem", "soc", "penetration", "cybersecurity", "infosec", "vulnerability",
+    # Operating systems, system dashboards & architecture
+    "operating", "system", "systems", "dashboard", "dashboards", "linux", "ubuntu", "debian",
+    "centos", "fedora", "windows", "macos", "darwin", "unix", "posix", "kernel", "os",
+    # Version control, task & collaboration tools
+    "git", "github", "gitlab", "bitbucket", "jira", "confluence", "trello", "slack", "teams", "notion", "figma",
+    # Languages, frameworks, databases & technical terms
+    "python", "java", "javascript", "typescript", "golang", "rust", "ruby", "php", "html", "css",
+    "sql", "nosql", "postgres", "postgresql", "mysql", "sqlite", "mongodb", "redis", "elasticsearch",
+    "react", "angular", "vue", "node", "nodejs", "django", "flask", "fastapi", "spring", "boot",
+    "express", "api", "apis", "rest", "graphql", "microservices", "frontend", "backend", "fullstack",
+    "devops", "server", "servers", "client", "database", "databases", "network", "networking", "firewall",
+    "proxy", "gateway", "pipeline", "ci", "cd", "sdlc", "agile", "scrum", "software", "hardware", "tool", "tools"
 }
 
 # Corporate & organizational suffixes to distinguish organizations from person names

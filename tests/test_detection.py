@@ -227,3 +227,56 @@ def test_resume_candidate_name_and_contact_labels():
     assert finding_map["vikas.ahankari@rediffmail.com"] == PIIType.EMAIL
     assert "+91 9876543210" in finding_map
     assert finding_map["+91 9876543210"] == PIIType.PHONE
+
+
+def test_tech_tools_and_headings_not_flagged_as_person():
+    """Ensure technical tools, cloud platforms, OS dashboards, and headings are never misidentified as PERSON."""
+    engine = PIIEngine()
+    false_positives = [
+        "ABOUT ME",
+        "Microsoft Azure",
+        "Burp Suite",
+        "Operating System Dashboard",
+        "Docker",
+        "Docker Compose",
+        "Kubernetes",
+        "Linux",
+        "Postman",
+    ]
+    for item in false_positives:
+        findings = engine.detect_raw_text(item)
+        person_findings = [f.text for f in findings if f.pii_type == PIIType.PERSON]
+        assert len(person_findings) == 0, f"False positive detected: {item} flagged as PERSON"
+
+
+def test_multi_method_hybrid_identification():
+    """Ensure multi-engine methods (NER+REGEX, CONTEXT, NER+CONTEXT, REGEX+CONTEXT) are generated."""
+    engine = PIIEngine()
+
+    # 1. Header candidate name -> corroborated by NER, REGEX, and CONTEXT
+    b_cand = DocumentBlock("d1", "cv.pdf", "pdf", "page_1_block_1", "heading", "Shrish", 0)
+    cand_findings = engine.detect_in_block(b_cand)
+    assert len(cand_findings) == 1
+    assert "NER" in cand_findings[0].detection_method
+    assert "REGEX" in cand_findings[0].detection_method
+    assert "CONTEXT" in cand_findings[0].detection_method
+    assert "+".join(cand_findings[0].detection_method) == "NER+REGEX+CONTEXT"
+
+    # 2. Standalone candidate on deeper page -> NER+REGEX
+    b_p2 = DocumentBlock("d1", "cv.pdf", "pdf", "page_2_block_8", "text", "Sarah Connor", 8)
+    p2_findings = engine.detect_in_block(b_p2)
+    assert len(p2_findings) == 1
+    assert "+".join(p2_findings[0].detection_method) == "NER+REGEX"
+
+    # 3. Labeled email -> REGEX+CONTEXT
+    b_email = DocumentBlock("d1", "cv.pdf", "pdf", "page_1_block_3", "text", "Email: shrish.ahankari.07@gmail.com", 2)
+    email_findings = engine.detect_in_block(b_email)
+    assert len(email_findings) == 1
+    assert "+".join(email_findings[0].detection_method) == "REGEX+CONTEXT"
+
+    # 4. Pure contextual ID -> CONTEXT
+    b_staff = DocumentBlock("d1", "cv.pdf", "pdf", "page_1_block_4", "text", "Staff ID: 10294", 3)
+    staff_findings = engine.detect_in_block(b_staff)
+    assert len(staff_findings) == 1
+    assert "+".join(staff_findings[0].detection_method) == "CONTEXT"
+

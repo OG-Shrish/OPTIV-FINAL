@@ -65,11 +65,18 @@ CONTEXT_RULES = [
     ),
     # Contact / Passenger / Candidate / Person Name Cues (e.g. 'Passenger: Shrish', 'Contact: John Smith', 'Candidate: Vikas Ahankari')
     (
-        re.compile(r"(?i)\b(?:Candidate(?:\s+Name)?|Applicant(?:\s+Name)?|Passenger(?:\s+Name)?|Name|Full\s+Name|First\s+Name|Traveler(?:\s+Name)?|Traveller(?:\s+Name)?|Customer(?:\s+Name)?|Guest(?:\s+Name)?|Contact(?:\s+Person)?|Assigned\s+To|Account\s+Owner|Manager|Employee|Owner|Investigator|Doctor|Patient|Attendee)\s*[:=-][ \t]*([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+){0,3})"),
+        re.compile(r"(?i)\b(?:Candidate(?:\s+Name)?|Applicant(?:\s+Name)?|Passenger(?:\s+Name)?|Name|Full\s+Name|First\s+Name|Last\s+Name|Traveler(?:\s+Name)?|Traveller(?:\s+Name)?|Customer(?:\s+Name)?|Guest(?:\s+Name)?|Contact(?:\s+Person)?|Assigned\s+To|Account\s+Owner|Manager|Employee|Owner|Investigator|Doctor|Patient|Attendee|Author|Consultant|Developer|Engineer|Auditor|Reporter|Prepared\s+By|Submitted\s+By|Authored\s+By|Reported\s+By|Created\s+By|Reviewed\s+By|Lead|By)\s*[:=-][ \t]*([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+){0,3})"),
+        PIIType.PERSON,
+        0.96,
+        Severity.HIGH,
+        "Person name preceded by organizational role, ticket header, passenger, or candidate label.",
+    ),
+    (
+        re.compile(r"(?i)\b(?:Candidate(?:\s+Name)?|Applicant(?:\s+Name)?|Passenger(?:\s+Name)?|Name|Full\s+Name|First\s+Name|Last\s+Name|Traveler(?:\s+Name)?|Traveller(?:\s+Name)?|Customer(?:\s+Name)?|Guest(?:\s+Name)?|Contact(?:\s+Person)?|Assigned\s+To|Account\s+Owner|Manager|Employee|Owner|Investigator|Doctor|Patient|Attendee|Author|Consultant|Developer|Engineer|Auditor|Reporter|Prepared\s+By|Submitted\s+By|Authored\s+By|Reported\s+By|Created\s+By|Reviewed\s+By|Lead|By)\s*[:=-][ \t]*([A-Z]{2,}(?:[ \t]+[A-Z]{2,}){0,3})"),
         PIIType.PERSON,
         0.95,
         Severity.HIGH,
-        "Person name preceded by organizational role, ticket header, passenger, or candidate label.",
+        "All-caps person name preceded by candidate, passenger, or role label.",
     ),
     # Honorific / Salutation Person Name Cues (e.g. 'Mr. Shrish', 'Dr. Watson', 'Shri Shrish')
     (
@@ -81,7 +88,7 @@ CONTEXT_RULES = [
     ),
     # Email with Label
     (
-        re.compile(r"(?i)\b(?:Email(?:\s+Address)?)\s*[:=-]?\s*([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})"),
+        re.compile(r"(?i)\b(?:Email(?:\s+Address)?|E-mail|Mail|Mailbox|Contact\s+Email)\s*[:=-]?[ \t]*([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})"),
         PIIType.EMAIL,
         0.99,
         Severity.HIGH,
@@ -89,7 +96,7 @@ CONTEXT_RULES = [
     ),
     # Phone with Label
     (
-        re.compile(r"(?i)\b(?:Phone|Mobile|Tel|Telephone|Cell(?:\s+Number)?)\s*[:=-]?\s*(\+?[\d\s().-]{7,20})"),
+        re.compile(r"(?i)\b(?:Phone|Mobile|Mob|Tel|Telephone|Cell(?:\s+Number|\s+No\.?)?|Contact(?:\s+No\.?|\s+Number)?|Ph\.?)\s*[:=-]?[ \t]*(\+?[\d\s().-]{7,20})"),
         PIIType.PHONE,
         0.98,
         Severity.HIGH,
@@ -177,5 +184,36 @@ class ContextDetector:
                         masked_text=mask_sensitive_value(val, pii_type.value),
                     )
                 )
+
+        # Document header candidate name context: Primary subject in header context
+        if block_order <= 1 or ("page_1" in location and "block_1" in location):
+            header_name_pattern = re.compile(r"(?m)^[ \t]*([A-Z][a-z]{1,25}(?:\s+[A-Z][a-z]{1,25}){0,3})[ \t\r]*$")
+            for match in header_name_pattern.finditer(text):
+                val = match.group(1).strip()
+                if not val or PLACEHOLDER_REGEX.match(val):
+                    continue
+                if is_valid_person_entity(val):
+                    start_char = match.start(1)
+                    end_char = match.end(1)
+                    if not any(f.start <= start_char and f.end >= end_char for f in findings if f.pii_type == PIIType.PERSON):
+                        findings.append(
+                            PIIFinding(
+                                finding_id=f"ctx_candidate_header_{block_order}_{start_char}",
+                                document_id=document_id,
+                                file_name=file_name,
+                                location=location,
+                                block_order=block_order,
+                                start=start_char,
+                                end=end_char,
+                                text=val,
+                                pii_type=PIIType.PERSON,
+                                confidence=0.94,
+                                confidence_level=ConfidenceLevel.HIGH,
+                                detection_method=["CONTEXT"],
+                                severity=Severity.HIGH,
+                                explanation="Candidate subject name identified in primary document header context.",
+                                masked_text=mask_sensitive_value(val, "PERSON"),
+                            )
+                        )
 
         return findings
