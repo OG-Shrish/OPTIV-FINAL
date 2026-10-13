@@ -1192,7 +1192,6 @@ else:
                 all_findings_rows.append({
                     "Severity": f.severity.value if hasattr(f.severity, "value") else str(f.severity),
                     "PII Type": f.pii_type.value if hasattr(f.pii_type, "value") else str(f.pii_type),
-                    "Confidence": f"{f.confidence * 100:.1f}%",
                     "Method": " + ".join(f.detection_method),
                     "Location": f.location,
                     "Entity (Masked/Reviewed)": display_val,
@@ -1288,7 +1287,6 @@ else:
                         "Location": f.location,
                         "PII Type": f.pii_type.value if hasattr(f.pii_type, "value") else str(f.pii_type),
                         "Severity": f.severity.value if hasattr(f.severity, "value") else str(f.severity),
-                        "Confidence": f"{f.confidence * 100:.1f}%",
                         "Method": " + ".join(f.detection_method),
                         "Entity (Masked)": f.masked_text,
                         "Explanation": f.explanation,
@@ -1306,7 +1304,6 @@ else:
                     traceability_data.append({
                         "Source Location": f.location,
                         "Detected PII Type": f.pii_type.value if hasattr(f.pii_type, "value") else str(f.pii_type),
-                        "Confidence Score": f"{f.confidence * 100:.1f}% ({f.confidence_level.value})",
                         "Detection Methodology": " + ".join(f.detection_method),
                         "Semantic Replacement": tag,
                         "Risk Rationale": f.explanation,
