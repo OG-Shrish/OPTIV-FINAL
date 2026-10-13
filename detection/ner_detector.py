@@ -103,9 +103,14 @@ NON_PERSON_WORDS = {
     # Conversational, personal pronouns & section prepositions
     "about", "me", "myself", "who", "what", "why", "how", "when", "where", "which", "whose",
     "my", "you", "your", "he", "him", "his", "she", "her", "we", "our", "us", "they", "them", "their", "it", "its",
-    # Cloud, tech enterprises, & infrastructure platforms
+    # Cloud, storage, tech enterprises, & infrastructure platforms
     "microsoft", "azure", "aws", "amazon", "google", "cloud", "gcp", "oracle", "ibm", "cisco",
     "vmware", "salesforce", "apple", "intel", "amd", "nvidia", "meta", "redhat",
+    "storage", "storages", "bucket", "buckets", "blob", "blobs", "s3", "compute", "instance",
+    # AI, ML, & LLM runtimes, libraries and tools
+    "ollama", "huggingface", "langchain", "llamaindex", "vllm", "transformers", "pytorch",
+    "tensorflow", "keras", "scikit", "sklearn", "pandas", "numpy", "matplotlib", "seaborn",
+    "opencv", "nltk", "spacy", "gemini", "chatgpt", "openai", "anthropic", "claude", "mistral", "llama",
     # Containerization, virtualization & DevOps tools
     "docker", "compose", "kubernetes", "k8s", "helm", "podman", "vagrant", "virtualbox",
     "jenkins", "ansible", "terraform", "puppet", "chef", "circleci", "travis",
@@ -124,7 +129,11 @@ NON_PERSON_WORDS = {
     "react", "angular", "vue", "node", "nodejs", "django", "flask", "fastapi", "spring", "boot",
     "express", "api", "apis", "rest", "graphql", "microservices", "frontend", "backend", "fullstack",
     "devops", "server", "servers", "client", "database", "databases", "network", "networking", "firewall",
-    "proxy", "gateway", "pipeline", "ci", "cd", "sdlc", "agile", "scrum", "software", "hardware", "tool", "tools"
+    "proxy", "gateway", "pipeline", "ci", "cd", "sdlc", "agile", "scrum", "software", "hardware", "tool", "tools",
+    # Student clubs, collegiate societies, leadership, and extracurricular activities
+    "club", "clubs", "society", "societies", "chapter", "chapters", "committee", "council", "association",
+    "outreach", "advocacy", "relations", "publicity", "sponsorship", "logistics", "editorial", "curation",
+    "volunteer", "volunteering", "volunteerism", "mentorship", "fest", "symposium", "hackathon", "workshop"
 }
 
 # Corporate & organizational suffixes to distinguish organizations from person names
@@ -133,7 +142,10 @@ ORG_SUFFIX_WORDS = {
     "pvt", "private", "gmbh", "co", "company", "enterprises", "holdings",
     "technologies", "solutions", "systems", "services", "software", "bank",
     "air", "airlines", "airways", "hospital", "college", "university", "school",
-    "institute", "foundation", "group", "industries", "motors", "labs", "laboratory"
+    "institute", "foundation", "group", "industries", "motors", "labs", "laboratory",
+    "club", "clubs", "society", "societies", "chapter", "chapters", "committee", "council",
+    "association", "team", "teams", "cell", "cells", "forum", "board", "union",
+    "initiative", "initiatives", "project", "projects", "storage", "dashboard", "platform", "suite"
 }
 
 # Known nationalities, demonyms, religions, and political affiliations (true NORP entities)
@@ -278,6 +290,18 @@ class NERDetector:
             if is_person_label or is_misclassified_norp:
                 if not is_valid_person_entity(ent_text):
                     continue
+
+                words = re.findall(r"[A-Za-z]+", ent_text)
+                if len(words) == 1:
+                    is_header_candidate = (block_order <= 1 or ("page_1" in location and "block_1" in location))
+                    start_ctx = max(0, start_char - 25)
+                    preceding_text = text[start_ctx:start_char].lower()
+                    has_person_cue = any(cue in preceding_text for cue in [
+                        "mr.", "mrs.", "ms.", "miss", "dr.", "prof.", "shri", "smt.",
+                        "name", "candidate", "passenger", "contact", "person", "dear", "attended by", "with "
+                    ])
+                    if not (is_header_candidate or has_person_cue):
+                        continue
 
                 findings.append(
                     PIIFinding(

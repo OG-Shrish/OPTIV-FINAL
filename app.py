@@ -464,9 +464,8 @@ CORPORATE_LIGHT_CSS = """
 st.markdown(CORPORATE_LIGHT_CSS, unsafe_allow_html=True)
 
 
-@st.cache_resource
 def get_pipeline():
-    """Cache singleton pipeline instance for high performance (v4 - Resume candidate name lines & email label false positive fix)."""
+    """Instantiate fresh GatewayPipeline instance to guarantee latest detection policies and rules are applied without stale cache."""
     return GatewayPipeline()
 
 
