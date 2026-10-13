@@ -4,7 +4,7 @@ Identifies PII when preceded by business evidence label indicators (e.g., 'Emplo
 'Contact:', 'DOB:', etc.) and boosts detection confidence.
 """
 import re
-from typing import List
+from typing import List, Optional, Dict, Any
 
 from models.schemas import PIIFinding, PIIType, Severity, ConfidenceLevel
 from utils.helpers import mask_sensitive_value
@@ -57,7 +57,7 @@ CONTEXT_RULES = [
     ),
     # PNR (Passenger Name Record)
     (
-        re.compile(r"(?i)\b(?:PNR(?:\s*(?:No\.?|Number|#))?)\s*[:=-]?\s*([0-9]{10})\b"),
+        re.compile(r"(?i)\b(?:PNR(?:\s*(?:No\.?|Number|#))?)\s*[:=\t\s-]?\s*([A-Z0-9]{6}\b|[0-9]{10}\b)"),
         PIIType.GOVERNMENT_ID,
         0.98,
         Severity.HIGH,
@@ -170,7 +170,8 @@ class ContextDetector:
         document_id: str,
         file_name: str,
         location: str,
-        block_order: int
+        block_order: int,
+        metadata: Optional[Dict[str, Any]] = None
     ) -> List[PIIFinding]:
         findings: List[PIIFinding] = []
         if not text or not text.strip():
@@ -267,5 +268,40 @@ class ContextDetector:
                                 masked_text=mask_sensitive_value(val, "PERSON"),
                             )
                         )
+
+        # Table Column Header Context (e.g. table with 'PNR', 'E-Ticket No' headers)
+        if metadata and metadata.get("headers"):
+            headers = metadata.get("headers", [])
+            cells = [c.strip() for c in text.split(" | ")]
+            for col_idx, h in enumerate(headers):
+                if col_idx < len(cells):
+                    cell_val = cells[col_idx]
+                    if not cell_val or cell_val == "-" or PLACEHOLDER_REGEX.match(cell_val):
+                        continue
+                    if re.search(r"\b(pnr|e-?ticket(?:\s*no\.?)?|booking\s*id)\b", h, re.I):
+                        if re.match(r"^[A-Z0-9]{6}$", cell_val) or re.match(r"^\d{10}$", cell_val):
+                            start_char = text.find(cell_val)
+                            if start_char != -1:
+                                end_char = start_char + len(cell_val)
+                                if not any(f.start <= start_char and f.end >= end_char for f in findings):
+                                    findings.append(
+                                        PIIFinding(
+                                            finding_id=f"ctx_pnr_table_{block_order}_{start_char}",
+                                            document_id=document_id,
+                                            file_name=file_name,
+                                            location=location,
+                                            block_order=block_order,
+                                            start=start_char,
+                                            end=end_char,
+                                            text=cell_val,
+                                            pii_type=PIIType.GOVERNMENT_ID,
+                                            confidence=0.98,
+                                            confidence_level=ConfidenceLevel.HIGH,
+                                            detection_method=["CONTEXT"],
+                                            severity=Severity.HIGH,
+                                            explanation="Passenger Name Record (PNR) identified via table column header.",
+                                            masked_text=mask_sensitive_value(cell_val, "GOVERNMENT_ID"),
+                                        )
+                                    )
 
         return findings

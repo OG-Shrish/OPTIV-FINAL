@@ -59,13 +59,22 @@ GOVT_GENERIC_REGEX = re.compile(r"(?<!\w)\b(?:GVT|GOV|ID|PASSPORT)[-_][0-9A-Z]{5
 AADHAAR_REGEX = re.compile(r"(?<!\w)\b[2-9]\d{3}\s\d{4}\s\d{4}\b(?!\s\d{4})(?!\w)")
 
 # Travel & Reservation Identifiers
-PNR_REGEX = re.compile(r"(?i)\b(?:PNR(?:\s*(?:No\.?|Number|#))?)\s*[:=-]?\s*([0-9]{10})\b")
+PNR_REGEX = re.compile(r"(?i)\b(?:PNR(?:\s*(?:No\.?|Number|#))?)\s*[:=\t\s-]?\s*([A-Z0-9]{6}\b|[0-9]{10}\b)")
 TRANSACTION_ID_REGEX = re.compile(r"(?i)\b(?:Transaction\s+ID|Txn\s+ID|Booking\s+ID|Order\s+ID)\s*[:=-]?\s*([A-Za-z0-9_-]{8,25})\b")
 GSTIN_REGEX = re.compile(r"(?i)\b(?:GSTIN|GST|Tax\s*ID)\s*[:=-]?\s*([0-9A-Z]{14,16})\b")
 
-# Calendar & Alphanumeric Date Patterns (e.g. 26-Nov-2026, 26-Sept-2026, 12/05/2026)
+# Calendar & Alphanumeric Date Patterns (e.g. 26-Nov-2026, Sun, 04 Oct ‘26, 04 Oct '26, 12/05/2026, OCT 04)
+MONTHS_PAT = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+DAY_PREFIX_PAT = r"(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?:day)?\.?,?\s+)?"
+YEAR_SUFFIX_PAT = r"(?:[\s\-\/\.,]+(?:(?:19|20)\d{2}|['‘’`]\d{2}|\d{2}))"
+
 DATE_REGEX = re.compile(
-    r"\b(?:\d{1,2}[-/\.](?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[-/\.]\d{2,4}|\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4}|\d{4}[-/\.]\d{1,2}[-/\.]\d{1,2})\b",
+    rf"(?i)\b(?:"
+    rf"{DAY_PREFIX_PAT}(?:[0-2]?[1-9]|[1-3]0|31)(?:st|nd|rd|th)?[\s\-\/\.]+{MONTHS_PAT}{YEAR_SUFFIX_PAT}?"
+    rf"|{DAY_PREFIX_PAT}{MONTHS_PAT}[\s\-\/\.]+(?:[0-2]?[1-9]|[1-3]0|31)(?:st|nd|rd|th)?{YEAR_SUFFIX_PAT}?"
+    rf"|(?:[0-2]?[1-9]|[1-3]0|31)[-/\.](?:0?[1-9]|1[0-2])[-/\.](?:(?:19|20)\d{{2}}|\d{{2}})"
+    rf"|(?:19|20)\d{{2}}[-/\.](?:0?[1-9]|1[0-2])[-/\.](?:[0-2]?[1-9]|[1-3]0|31)"
+    rf")\b",
     re.IGNORECASE
 )
 
@@ -348,20 +357,28 @@ class RegexDetector:
 
         # Calendar & Alphanumeric Dates
         for match in DATE_REGEX.finditer(text):
-            val = match.group(0).strip()
-            if placeholder_pattern.match(val):
+            start = match.start()
+            end = match.end()
+            val = text[start:end]
+            while val and val[-1] in ".,;:| \t":
+                val = val[:-1]
+                end -= 1
+            while val and val[0] in ".,;:| \t":
+                val = val[1:]
+                start += 1
+            if not val or placeholder_pattern.match(val):
                 continue
-            if any(f.start <= match.start() and f.end >= match.end() for f in findings):
+            if any(f.start <= start and f.end >= end for f in findings):
                 continue
             findings.append(
                 PIIFinding(
-                    finding_id=f"rgx_date_{block_order}_{match.start()}",
+                    finding_id=f"rgx_date_{block_order}_{start}",
                     document_id=document_id,
                     file_name=file_name,
                     location=location,
                     block_order=block_order,
-                    start=match.start(),
-                    end=match.end(),
+                    start=start,
+                    end=end,
                     text=val,
                     pii_type=PIIType.DATE,
                     confidence=0.90,

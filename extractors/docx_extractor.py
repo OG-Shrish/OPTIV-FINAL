@@ -54,6 +54,10 @@ def extract_docx(
 
     # Process tables
     for t_idx, table in enumerate(doc.tables):
+        header_cells = []
+        if len(table.rows) > 1:
+            header_cells = [c.text.strip() for c in table.rows[0].cells]
+
         for r_idx, row in enumerate(table.rows):
             cell_texts = []
             for c_idx, cell in enumerate(row.cells):
@@ -73,7 +77,11 @@ def extract_docx(
                         block_type="table_row",
                         text=row_combined,
                         order=order_counter,
-                        metadata={"table_index": t_idx + 1, "row_index": r_idx + 1}
+                        metadata={
+                            "table_index": t_idx + 1,
+                            "row_index": r_idx + 1,
+                            "headers": header_cells if r_idx > 0 else []
+                        }
                     )
                 )
                 order_counter += 1

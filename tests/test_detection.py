@@ -332,4 +332,37 @@ def test_train_ticket_pii_detection():
     assert any("26-Nov-2026" in t for t in finding_texts)
 
 
+def test_flight_ticket_pii_and_airport_exclusion():
+    """Verify that flight tickets detect dates (including weekday and curly apostrophes) and airline PNRs, while excluding airport facility names."""
+    engine = PIIEngine()
+    
+    # 1. Date with weekday & curly apostrophe
+    b_date = DocumentBlock("d_fl", "ticket.docx", "docx", "table_1_row_3", "table_row", "Sun, 04 Oct \u201826 | Sun, 04 Oct \u201826", 0)
+    findings_date = engine.detect_in_block(b_date)
+    assert len(findings_date) == 2
+    assert all(f.pii_type == PIIType.DATE for f in findings_date)
+
+    # 2. Airport facility name must NOT be flagged as PERSON
+    b_airport = DocumentBlock("d_fl", "ticket.docx", "docx", "table_1_row_5", "table_row", "Jay Prakash Narayan International Airport (PAT) | Chennai International Airport (MAA)", 1)
+    findings_airport = engine.detect_in_block(b_airport)
+    assert not any(f.pii_type == PIIType.PERSON for f in findings_airport)
+
+    # 3. Airline PNR from table header context
+    b_pnr = DocumentBlock(
+        document_id="d_fl",
+        file_name="ticket.docx",
+        file_type="docx",
+        location="table_2_row_2",
+        block_type="table_row",
+        text="Mr. Reyansh Kumar | FQA2ZD | -",
+        order=2,
+        metadata={"table_index": 2, "row_index": 2, "headers": ["Travellers", "PNR", "E-Ticket no."]}
+    )
+    findings_pnr = engine.detect_in_block(b_pnr)
+    pnr_findings = [f for f in findings_pnr if f.text == "FQA2ZD"]
+    assert len(pnr_findings) == 1
+    assert pnr_findings[0].pii_type == PIIType.GOVERNMENT_ID
+
+
+
 

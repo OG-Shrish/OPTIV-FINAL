@@ -8,6 +8,21 @@ from utils.helpers import mask_sensitive_value
 
 logger = logging.getLogger(__name__)
 
+# Calendar date pattern for validating NER DATE entities
+_MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+_DAY_PREFIX = r"(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?:day)?\.?,?\s+)?"
+_YEAR_SUFFIX = r"(?:[\s\-\/\.,]+(?:(?:19|20)\d{2}|['‘’`]\d{2}|\d{2}))"
+
+DATE_REGEX = re.compile(
+    rf"(?i)\b(?:"
+    rf"{_DAY_PREFIX}(?:[0-2]?[1-9]|[1-3]0|31)(?:st|nd|rd|th)?[\s\-\/\.]+{_MONTHS}{_YEAR_SUFFIX}?"
+    rf"|{_DAY_PREFIX}{_MONTHS}[\s\-\/\.]+(?:[0-2]?[1-9]|[1-3]0|31)(?:st|nd|rd|th)?{_YEAR_SUFFIX}?"
+    rf"|(?:[0-2]?[1-9]|[1-3]0|31)[-/\.](?:0?[1-9]|1[0-2])[-/\.](?:(?:19|20)\d{{2}}|\d{{2}})"
+    rf"|(?:19|20)\d{{2}}[-/\.](?:0?[1-9]|1[0-2])[-/\.](?:[0-2]?[1-9]|[1-3]0|31)"
+    rf")\b",
+    re.IGNORECASE
+)
+
 # Pattern to avoid classifying placeholders as NER entities
 PLACEHOLDER_REGEX = re.compile(
     r"^\[(PERSON|EMAIL|PHONE|EMPLOYEE_ID|GOVERNMENT_ID|ADDRESS|DATE_OF_BIRTH|DATE|CREDIT_CARD|IP_ADDRESS|OTHER_PII)_\d+\]$"
@@ -329,6 +344,16 @@ class NERDetector:
                     if not (is_header_candidate or has_person_cue):
                         continue
 
+                # Check if this candidate is part of an infrastructure, facility, airport, or station name
+                following_window = text[end_char:end_char + 50].split("|")[0].lower()
+                preceding_window = text[max(0, start_char - 30):start_char].lower()
+                facility_pattern = re.compile(
+                    r"\b(airport|aerodrome|airfield|station|railway|junction|terminus|terminal|hospital|university|institute|college|stadium|memorial|museum|expressway|highway|metro)\b",
+                    re.IGNORECASE
+                )
+                if facility_pattern.search(following_window) or facility_pattern.search(preceding_window):
+                    continue
+
                 findings.append(
                     PIIFinding(
                         finding_id=f"ner_person_{block_order}_{start_char}",
@@ -394,14 +419,7 @@ class NERDetector:
                     continue
 
                 # Must represent a specific calendar date (day-month-year, month-day, or formatted digits)
-                is_calendar_date = bool(re.search(
-                    r"(?i)(?:\d{1,2}[-/\.](?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[-/\.]\d{2,4}"
-                    r"|\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4}"
-                    r"|\d{4}[-/\.]\d{1,2}[-/\.]\d{1,2}"
-                    r"|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{2,4})?"
-                    r"|\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)(?:,?\s+\d{2,4})?)",
-                    ent_text
-                ))
+                is_calendar_date = bool(DATE_REGEX.search(ent_text))
 
                 if not is_calendar_date:
                     continue

@@ -70,6 +70,7 @@ class PIIEngine:
                 file_name=block.file_name,
                 location=block.location,
                 block_order=block.order,
+                metadata=block.metadata,
             )
         )
 

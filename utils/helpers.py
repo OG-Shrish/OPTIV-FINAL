@@ -93,8 +93,12 @@ def mask_sensitive_value(text: str, pii_type: str = "OTHER_PII") -> str:
         return " ".join(masked_words)
 
     if pii_type in ("DATE", "DATE_OF_BIRTH"):
-        if len(val) >= 4:
-            return f"**-***-{val[-4:]}"
+        clean = val.strip()
+        m = re.search(r"(\d{2,4})$", clean)
+        if m:
+            return f"**-***-{m.group(1)}"
+        if len(clean) >= 4:
+            return f"**-***-{clean[-4:].strip()}"
         return "**-**-****"
         
     if len(val) > 4:
