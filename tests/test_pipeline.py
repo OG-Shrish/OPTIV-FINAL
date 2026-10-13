@@ -83,3 +83,38 @@ def test_clean_document_passes():
     assert result.security_status == SecurityStatus.SANITIZED
     assert len(result.pii_findings) == 0
     assert result.validation_result.is_safe is True
+
+
+def test_validation_raw_entity_leak_blocked():
+    """Verify that if an entity detected in the initial pass is not redacted and leaks into sanitized text, validator blocks."""
+    pii_engine = PIIEngine()
+    validator = PostRedactionValidator(pii_engine=pii_engine)
+
+    orig_finding = PIIFinding(
+        finding_id="f_orig",
+        document_id="d_leak2",
+        file_name="leak2.txt",
+        location="p1",
+        block_order=0,
+        start=0,
+        end=10,
+        text="Alice Smith",
+        pii_type=PIIType.PERSON,
+        confidence=0.95,
+        confidence_level=ConfidenceLevel.HIGH,
+        detection_method=["NER"],
+        severity=Severity.HIGH,
+    )
+    # Block still contains "Alice Smith" unredacted
+    b = DocumentBlock("d_leak2", "leak2.txt", "txt", "p1", "text", "Hello Alice Smith how are you", 0)
+
+    val_res = validator.validate(
+        redacted_blocks=[b],
+        document_id="d_leak2",
+        original_findings=[orig_finding],
+        original_blocks=[b],
+    )
+    assert val_res.status == SecurityStatus.BLOCKED
+    assert val_res.passed is False
+    assert any("Alice Smith" in rf.text for rf in val_res.residual_findings)
+

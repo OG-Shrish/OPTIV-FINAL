@@ -286,3 +286,19 @@ def test_multi_method_hybrid_identification():
     assert len(staff_findings) == 1
     assert "+".join(staff_findings[0].detection_method) == "CONTEXT"
 
+
+def test_multiline_header_candidate_name_and_roles():
+    """Verify that multi-word full name on header line is fully matched and role on next line is not matched as person."""
+    engine = PIIEngine()
+    b = DocumentBlock("d1", "resume.pdf", "pdf", "page_1_block_1", "heading", "Shrish Vikas Ahankari\nStudent", 0)
+    findings = engine.detect_in_block(b)
+    assert len(findings) == 1
+    assert findings[0].text == "Shrish Vikas Ahankari"
+    assert findings[0].pii_type == PIIType.PERSON
+
+    # Verify corporate / auto words are not flagged
+    for term in ["Primary Employee", "Student", "Piaggio", "Ashok Leyland"]:
+        f_list = engine.detect_raw_text(term)
+        assert len([f for f in f_list if f.pii_type == PIIType.PERSON]) == 0
+
+

@@ -136,7 +136,24 @@ NON_PERSON_WORDS = {
     # Student clubs, collegiate societies, leadership, and extracurricular activities
     "club", "clubs", "society", "societies", "chapter", "chapters", "committee", "council", "association",
     "outreach", "advocacy", "relations", "publicity", "sponsorship", "logistics", "editorial", "curation",
-    "volunteer", "volunteering", "volunteerism", "mentorship", "fest", "symposium", "hackathon", "workshop"
+    "volunteer", "volunteering", "volunteerism", "mentorship", "fest", "symposium", "hackathon", "workshop",
+    # Roles, designations, titles, candidate statuses & qualifiers
+    "student", "fresher", "intern", "employee", "employer", "primary", "secondary", "tertiary", "candidate",
+    "applicant", "passenger", "customer", "vendor", "client", "user", "admin", "guest", "doctor", "patient",
+    "engineer", "developer", "analyst", "lead", "manager", "director", "executive", "consultant", "associate",
+    "officer", "administrator", "specialist", "coordinator", "technician", "assistant", "fellow", "scholar",
+    "researcher", "founder", "author", "contributor", "member", "operator", "instructor", "teacher",
+    "professor", "mentor", "tutor",
+    # Automotive, engineering, manufacturing & industrial brands
+    "piaggio", "ashok", "leyland", "bajaj", "maruti", "tata", "honda", "toyota", "hyundai", "ford", "bosch",
+    "mahindra", "suzuki", "hero", "tvs", "bcl", "wadia", "bbtcl", "nhk", "oem", "engg", "springs", "spring",
+    "motors", "vehicles", "automotive",
+    # IT, consulting & enterprise technology service providers
+    "wipro", "infosys", "tcs", "cognizant", "accenture", "capgemini", "hcl", "techmahindra", "deloitte",
+    "kpmg", "ey", "pwc",
+    # Resume sections, accomplishments, duties & industrial materials
+    "notable", "contribution", "contributions", "areas", "covered", "galvanized", "products", "coated",
+    "responsibilities", "responsibility", "duties", "initiatives", "performance", "highlights", "milestones"
 }
 
 # Corporate & organizational suffixes to distinguish organizations from person names
@@ -148,7 +165,8 @@ ORG_SUFFIX_WORDS = {
     "institute", "foundation", "group", "industries", "motors", "labs", "laboratory",
     "club", "clubs", "society", "societies", "chapter", "chapters", "committee", "council",
     "association", "team", "teams", "cell", "cells", "forum", "board", "union",
-    "initiative", "initiatives", "project", "projects", "storage", "dashboard", "platform", "suite"
+    "initiative", "initiatives", "project", "projects", "storage", "dashboard", "platform", "suite",
+    "springs", "spring", "vehicles", "automotive", "trading", "oem"
 }
 
 # Known nationalities, demonyms, religions, and political affiliations (true NORP entities)

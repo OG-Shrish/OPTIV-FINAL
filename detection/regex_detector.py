@@ -15,16 +15,16 @@ EMAIL_REGEX = re.compile(
 
 # Person naming patterns
 NAME_STANDALONE_REGEX = re.compile(
-    r"(?m)^[ \t]*([A-Z][a-z]{1,25}(?:\s+[A-Z][a-z]{1,25}){1,3})[ \t\r]*$"
+    r"(?m)^[ \t]*([A-Z][a-zA-Z]{1,25}(?:[ \t]+[A-Z][a-zA-Z]{1,25}){1,3})[ \t\r]*$"
 )
 NAME_HEADER_SINGLE_REGEX = re.compile(
     r"(?m)^[ \t]*([A-Z][a-z]{2,25})[ \t\r]*$"
 )
 NAME_HONORIFIC_REGEX = re.compile(
-    r"\b(?:Mr\.?|Mrs\.?|Ms\.?|Miss|Dr\.?|Prof\.?|Shri|Smt\.?)[ \t]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b"
+    r"\b(?:Mr\.?|Mrs\.?|Ms\.?|Miss|Dr\.?|Prof\.?|Shri|Smt\.?)[ \t]+([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+){0,3})\b"
 )
 NAME_ROLE_REGEX = re.compile(
-    r"(?i)\b(?:Candidate(?:\s+Name)?|Applicant(?:\s+Name)?|Passenger(?:\s+Name)?|Name|Full\s+Name|First\s+Name|Last\s+Name|Traveler|Customer|Contact|Author|Developer|Engineer|Prepared\s+by|Submitted\s+by|Doctor|Patient)\s*[:=-][ \t]*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})"
+    r"(?i)\b(?:Candidate(?:\s+Name)?|Applicant(?:\s+Name)?|Passenger(?:\s+Name)?|Name|Full\s+Name|First\s+Name|Last\s+Name|Traveler|Customer|Contact|Author|Developer|Engineer|Prepared\s+by|Submitted\s+by|Doctor|Patient)\s*[:=-][ \t]*([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+){0,3})"
 )
 
 # Phone patterns:

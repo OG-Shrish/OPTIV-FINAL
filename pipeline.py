@@ -157,6 +157,8 @@ class GatewayPipeline:
             validation_res = self.validator.validate(
                 redacted_blocks=redaction_res.redacted_blocks,
                 document_id=document_id,
+                original_findings=findings,
+                original_blocks=blocks,
             )
         except Exception as val_err:
             logger.error(f"Validation error for {file_name}: {val_err}")
