@@ -302,3 +302,34 @@ def test_multiline_header_candidate_name_and_roles():
         assert len([f for f in f_list if f.pii_type == PIIType.PERSON]) == 0
 
 
+def test_train_ticket_pii_detection():
+    """Verify that IRCTC train ticket reservation fields (passengers, PNR, dates, GSTIN, Txn ID) are correctly detected."""
+    engine = PIIEngine()
+    ticket_text = (
+        "ELECTRONIC RESERVATION SLIP (ERS)\n"
+        "PNR: 6310211781\n"
+        "Transaction ID: 100006871119322\n"
+        "Date of Booking: 26-Sept-2026\n"
+        "Date of Journey: 26-Nov-2026\n"
+        "Arrival Date: 27-Nov-2026\n"
+        "GSTIN: 07AAAGM00289C1ZL\n"
+        "Passenger Details:\n"
+        "1. ANIL SHAH\n"
+        "2. NEETA SHAH\n"
+        "3. ANKITA SHAH\n"
+    )
+    b = DocumentBlock("d_ticket", "ticket.pdf", "pdf", "page_1", "text", ticket_text, 0)
+    findings = engine.detect_in_block(b)
+    finding_texts = {f.text: f.pii_type for f in findings}
+
+    assert "6310211781" in finding_texts
+    assert "100006871119322" in finding_texts
+    assert "07AAAGM00289C1ZL" in finding_texts
+    assert "ANIL SHAH" in finding_texts
+    assert "NEETA SHAH" in finding_texts
+    assert "ANKITA SHAH" in finding_texts
+    assert any("26-Sept-2026" in t for t in finding_texts)
+    assert any("26-Nov-2026" in t for t in finding_texts)
+
+
+

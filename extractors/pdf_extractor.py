@@ -9,18 +9,33 @@ from config.settings import OCR_MIN_CHAR_COUNT
 
 logger = logging.getLogger(__name__)
 
-# Check Tesseract availability once at module level
+# Check Tesseract availability once at module level with auto-discovery
 TESSERACT_AVAILABLE = False
 try:
+    import os
+    import shutil
     import pytesseract
     from PIL import Image
     import io
-    # Test if tesseract executable exists
+
+    POSSIBLE_TESSERACT_PATHS = [
+        shutil.which("tesseract"),
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        os.path.expanduser(r"~\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"),
+    ]
+    for p in POSSIBLE_TESSERACT_PATHS:
+        if p and os.path.exists(p):
+            pytesseract.pytesseract.tesseract_cmd = p
+            break
+
     try:
-        pytesseract.get_tesseract_version()
+        tess_ver = pytesseract.get_tesseract_version()
         TESSERACT_AVAILABLE = True
-    except Exception:
+        logger.info(f"Tesseract OCR enabled (version: {tess_ver}, cmd: {pytesseract.pytesseract.tesseract_cmd})")
+    except Exception as e:
         TESSERACT_AVAILABLE = False
+        logger.warning(f"Tesseract OCR test failed: {e}")
 except ImportError:
     TESSERACT_AVAILABLE = False
 
@@ -57,7 +72,7 @@ def extract_pdf(
             
             if TESSERACT_AVAILABLE:
                 try:
-                    pix = page.get_pixmap(dpi=150)
+                    pix = page.get_pixmap(dpi=200)
                     img = Image.open(io.BytesIO(pix.tobytes("png")))
                     ocr_text = pytesseract.image_to_string(img).strip()
                 except Exception as ocr_err:

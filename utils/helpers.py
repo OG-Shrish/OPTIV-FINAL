@@ -91,6 +91,11 @@ def mask_sensitive_value(text: str, pii_type: str = "OTHER_PII") -> str:
         words = val.split()
         masked_words = [f"{w[0]}***" if len(w) > 1 else "*" for w in words]
         return " ".join(masked_words)
+
+    if pii_type in ("DATE", "DATE_OF_BIRTH"):
+        if len(val) >= 4:
+            return f"**-***-{val[-4:]}"
+        return "**-**-****"
         
     if len(val) > 4:
         return f"{val[:2]}***{val[-2:]}"

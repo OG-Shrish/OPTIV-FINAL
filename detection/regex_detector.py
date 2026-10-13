@@ -15,7 +15,7 @@ EMAIL_REGEX = re.compile(
 
 # Person naming patterns
 NAME_STANDALONE_REGEX = re.compile(
-    r"(?m)^[ \t]*([A-Z][a-zA-Z]{1,25}(?:[ \t]+[A-Z][a-zA-Z]{1,25}){1,3})[ \t\r]*$"
+    r"(?m)^[ \t]*(?:(?:[0-9]{1,3}[\.\)\-:]|[•\*\-\#])[ \t]+)?([A-Z][a-zA-Z]{1,25}(?:[ \t]+[A-Z][a-zA-Z]{1,25}){1,3})[ \t\r]*$"
 )
 NAME_HEADER_SINGLE_REGEX = re.compile(
     r"(?m)^[ \t]*([A-Z][a-z]{2,25})[ \t\r]*$"
@@ -58,6 +58,17 @@ SSN_REGEX = re.compile(r"(?<!\w)\b\d{3}-\d{2}-\d{4}\b(?!\w)")
 GOVT_GENERIC_REGEX = re.compile(r"(?<!\w)\b(?:GVT|GOV|ID|PASSPORT)[-_][0-9A-Z]{5,10}\b(?!\w)", re.IGNORECASE)
 AADHAAR_REGEX = re.compile(r"(?<!\w)\b[2-9]\d{3}\s\d{4}\s\d{4}\b(?!\s\d{4})(?!\w)")
 
+# Travel & Reservation Identifiers
+PNR_REGEX = re.compile(r"(?i)\b(?:PNR(?:\s*(?:No\.?|Number|#))?)\s*[:=-]?\s*([0-9]{10})\b")
+TRANSACTION_ID_REGEX = re.compile(r"(?i)\b(?:Transaction\s+ID|Txn\s+ID|Booking\s+ID|Order\s+ID)\s*[:=-]?\s*([A-Za-z0-9_-]{8,25})\b")
+GSTIN_REGEX = re.compile(r"(?i)\b(?:GSTIN|GST|Tax\s*ID)\s*[:=-]?\s*([0-9A-Z]{14,16})\b")
+
+# Calendar & Alphanumeric Date Patterns (e.g. 26-Nov-2026, 26-Sept-2026, 12/05/2026)
+DATE_REGEX = re.compile(
+    r"\b(?:\d{1,2}[-/\.](?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[-/\.]\d{2,4}|\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4}|\d{4}[-/\.]\d{1,2}[-/\.]\d{1,2})\b",
+    re.IGNORECASE
+)
+
 
 class RegexDetector:
     """Detects PII entities based on deterministic regex pattern rules."""
@@ -76,7 +87,7 @@ class RegexDetector:
 
         # Check if text is just a placeholder like [PERSON_001]
         # Ignore already redacted tokens to prevent false alarms on re-scan
-        placeholder_pattern = re.compile(r"\[(PERSON|EMAIL|PHONE|EMPLOYEE_ID|GOVERNMENT_ID|ADDRESS|DATE_OF_BIRTH|CREDIT_CARD|IP_ADDRESS|OTHER_PII)_\d+\]")
+        placeholder_pattern = re.compile(r"\[(PERSON|EMAIL|PHONE|EMPLOYEE_ID|GOVERNMENT_ID|ADDRESS|DATE_OF_BIRTH|DATE|CREDIT_CARD|IP_ADDRESS|OTHER_PII)_\d+\]")
 
         # 1. Emails
         for match in EMAIL_REGEX.finditer(text):
@@ -260,6 +271,108 @@ class RegexDetector:
                 )
             )
 
+        # PNR (Passenger Name Record)
+        for match in PNR_REGEX.finditer(text):
+            val = match.group(1).strip()
+            if placeholder_pattern.match(val):
+                continue
+            findings.append(
+                PIIFinding(
+                    finding_id=f"rgx_pnr_{block_order}_{match.start(1)}",
+                    document_id=document_id,
+                    file_name=file_name,
+                    location=location,
+                    block_order=block_order,
+                    start=match.start(1),
+                    end=match.end(1),
+                    text=val,
+                    pii_type=PIIType.GOVERNMENT_ID,
+                    confidence=0.98,
+                    confidence_level=ConfidenceLevel.HIGH,
+                    detection_method=["REGEX"],
+                    severity=Severity.HIGH,
+                    explanation="Passenger Name Record (PNR) travel reservation identifier.",
+                    masked_text=mask_sensitive_value(val, "GOVERNMENT_ID"),
+                )
+            )
+
+        # Transaction ID
+        for match in TRANSACTION_ID_REGEX.finditer(text):
+            val = match.group(1).strip()
+            if placeholder_pattern.match(val):
+                continue
+            findings.append(
+                PIIFinding(
+                    finding_id=f"rgx_txnid_{block_order}_{match.start(1)}",
+                    document_id=document_id,
+                    file_name=file_name,
+                    location=location,
+                    block_order=block_order,
+                    start=match.start(1),
+                    end=match.end(1),
+                    text=val,
+                    pii_type=PIIType.GOVERNMENT_ID,
+                    confidence=0.98,
+                    confidence_level=ConfidenceLevel.HIGH,
+                    detection_method=["REGEX"],
+                    severity=Severity.HIGH,
+                    explanation="Payment or booking transaction identifier.",
+                    masked_text=mask_sensitive_value(val, "GOVERNMENT_ID"),
+                )
+            )
+
+        # GSTIN (Tax Identification Number)
+        for match in GSTIN_REGEX.finditer(text):
+            val = match.group(1).strip()
+            if placeholder_pattern.match(val):
+                continue
+            findings.append(
+                PIIFinding(
+                    finding_id=f"rgx_gstin_{block_order}_{match.start(1)}",
+                    document_id=document_id,
+                    file_name=file_name,
+                    location=location,
+                    block_order=block_order,
+                    start=match.start(1),
+                    end=match.end(1),
+                    text=val,
+                    pii_type=PIIType.GOVERNMENT_ID,
+                    confidence=0.98,
+                    confidence_level=ConfidenceLevel.HIGH,
+                    detection_method=["REGEX"],
+                    severity=Severity.HIGH,
+                    explanation="Goods and Services Tax Identification Number (GSTIN).",
+                    masked_text=mask_sensitive_value(val, "GOVERNMENT_ID"),
+                )
+            )
+
+        # Calendar & Alphanumeric Dates
+        for match in DATE_REGEX.finditer(text):
+            val = match.group(0).strip()
+            if placeholder_pattern.match(val):
+                continue
+            if any(f.start <= match.start() and f.end >= match.end() for f in findings):
+                continue
+            findings.append(
+                PIIFinding(
+                    finding_id=f"rgx_date_{block_order}_{match.start()}",
+                    document_id=document_id,
+                    file_name=file_name,
+                    location=location,
+                    block_order=block_order,
+                    start=match.start(),
+                    end=match.end(),
+                    text=val,
+                    pii_type=PIIType.DATE,
+                    confidence=0.90,
+                    confidence_level=ConfidenceLevel.HIGH,
+                    detection_method=["REGEX"],
+                    severity=Severity.MEDIUM,
+                    explanation="Identified schedule, travel, or calendar date format.",
+                    masked_text=mask_sensitive_value(val, "DATE"),
+                )
+            )
+
         # 6. Phone Numbers
         # Combine phone detectors while avoiding overlaps
         phone_matches = []
@@ -279,8 +392,8 @@ class RegexDetector:
                 preceding_slice = text[max(0, match.start() - 6):match.start()].lower()
                 if re.search(r"[\$€£¥₹]|(?:inr|usd|eur|gbp|rs\.?)\s*$", preceding_slice):
                     continue
-                # Skip if already detected as IP or Credit Card
-                if any(f.start <= match.start() and f.end >= match.end() for f in findings if f.pii_type in [PIIType.IP_ADDRESS, PIIType.CREDIT_CARD]):
+                # Skip if already detected as IP, Credit Card, or Government ID (e.g. PNR)
+                if any(f.start <= match.start() and f.end >= match.end() for f in findings if f.pii_type in [PIIType.IP_ADDRESS, PIIType.CREDIT_CARD, PIIType.GOVERNMENT_ID]):
                     continue
                 phone_matches.append((match.start(), match.end(), val))
 

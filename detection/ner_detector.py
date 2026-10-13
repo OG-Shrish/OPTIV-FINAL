@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # Pattern to avoid classifying placeholders as NER entities
 PLACEHOLDER_REGEX = re.compile(
-    r"^\[(PERSON|EMAIL|PHONE|EMPLOYEE_ID|GOVERNMENT_ID|ADDRESS|DATE_OF_BIRTH|CREDIT_CARD|IP_ADDRESS|OTHER_PII)_\d+\]$"
+    r"^\[(PERSON|EMAIL|PHONE|EMPLOYEE_ID|GOVERNMENT_ID|ADDRESS|DATE_OF_BIRTH|DATE|CREDIT_CARD|IP_ADDRESS|OTHER_PII)_\d+\]$"
 )
 
 # Comprehensive non-person words, document labels, travel/airline terms, and measurements
@@ -153,7 +153,12 @@ NON_PERSON_WORDS = {
     "kpmg", "ey", "pwc",
     # Resume sections, accomplishments, duties & industrial materials
     "notable", "contribution", "contributions", "areas", "covered", "galvanized", "products", "coated",
-    "responsibilities", "responsibility", "duties", "initiatives", "performance", "highlights", "milestones"
+    "responsibilities", "responsibility", "duties", "initiatives", "performance", "highlights", "milestones",
+    # Travel, booking, ticket, transport & reservation terms
+    "booked", "booking", "from", "passenger", "passengers", "details", "gender", "status", "payment",
+    "ticket", "fare", "class", "quota", "distance", "acronyms", "transaction", "irctc", "railways", "railway",
+    "indian", "convenience", "insurance", "premium", "total", "departure", "arrival", "train", "coach",
+    "berth", "seat", "pnr", "gstin", "invoice", "supplier", "recipient", "taxable", "cgst", "sgst", "ugst", "igst"
 }
 
 # Corporate & organizational suffixes to distinguish organizations from person names
@@ -372,12 +377,40 @@ class NERDetector:
                     )
 
             # DATE
-            # Only classify if preceded by birth or personal cues
+            # DATE
             elif ent.label_ == "DATE":
+                clean_ent = ent_text.strip().lower()
+                non_pii_date_terms = {
+                    "quarterly", "monthly", "weekly", "daily", "annually", "annual", "yearly", "biannual",
+                    "today", "yesterday", "tomorrow", "now", "recently", "tonight", "morning", "afternoon", "evening",
+                    "spring", "summer", "autumn", "fall", "winter",
+                    "zero seconds", "seconds", "minutes", "hours", "days", "weeks", "months", "years"
+                }
+                if clean_ent in non_pii_date_terms:
+                    continue
+                if re.match(r"(?i)^q[1-4](\s+\d{2,4})?$", clean_ent):
+                    continue
+                if re.match(r"^\d{1,4}$", clean_ent):  # standalone year or small number
+                    continue
+
+                # Must represent a specific calendar date (day-month-year, month-day, or formatted digits)
+                is_calendar_date = bool(re.search(
+                    r"(?i)(?:\d{1,2}[-/\.](?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[-/\.]\d{2,4}"
+                    r"|\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4}"
+                    r"|\d{4}[-/\.]\d{1,2}[-/\.]\d{1,2}"
+                    r"|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{2,4})?"
+                    r"|\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)(?:,?\s+\d{2,4})?)",
+                    ent_text
+                ))
+
+                if not is_calendar_date:
+                    continue
+
                 start_context = max(0, start_char - 30)
                 context_window = text[start_context:start_char].lower()
-                dob_cues = ["birth", "born", "dob", "date of birth"]
-                if any(cue in context_window for cue in dob_cues):
+                dob_match = bool(re.search(r"\b(birth|born|dob|date of birth)\b", context_window, re.I))
+
+                if dob_match:
                     findings.append(
                         PIIFinding(
                             finding_id=f"ner_dob_{block_order}_{start_char}",
@@ -397,10 +430,30 @@ class NERDetector:
                             masked_text=mask_sensitive_value(ent_text, "DATE_OF_BIRTH"),
                         )
                     )
+                else:
+                    findings.append(
+                        PIIFinding(
+                            finding_id=f"ner_date_{block_order}_{start_char}",
+                            document_id=document_id,
+                            file_name=file_name,
+                            location=location,
+                            block_order=block_order,
+                            start=start_char,
+                            end=end_char,
+                            text=ent_text,
+                            pii_type=PIIType.DATE,
+                            confidence=0.88,
+                            confidence_level=ConfidenceLevel.MEDIUM,
+                            detection_method=["NER"],
+                            severity=Severity.MEDIUM,
+                            explanation="Date entity identified in schedule or transaction context.",
+                            masked_text=mask_sensitive_value(ent_text, "DATE"),
+                        )
+                    )
 
-        # Dedicated standalone candidate / personal name lines (e.g. 'Vikas Laxman Ahankari')
+        # Dedicated standalone candidate / personal name lines (e.g. 'Vikas Laxman Ahankari', '1. ANIL SHAH')
         name_line_pattern = re.compile(
-            r"(?m)^[ \t]*((?:[A-Z][a-z]+|[A-Z]{2,})(?:\s+(?:[A-Z](?:\.|\b|[a-z]+)|[A-Z]{2,})){1,3})[ \t\r]*$"
+            r"(?m)^[ \t]*(?:(?:[0-9]{1,3}[\.\)\-:]|[•\*\-\#])[ \t]+)?((?:[A-Z][a-z]+|[A-Z]{2,})(?:[ \t]+(?:[A-Z](?:\.|\b|[a-z]+)|[A-Z]{2,})){1,3})[ \t\r]*$"
         )
         for match in name_line_pattern.finditer(text):
             candidate = match.group(1).strip()

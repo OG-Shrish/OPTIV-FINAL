@@ -11,7 +11,7 @@ from utils.helpers import mask_sensitive_value
 from detection.ner_detector import is_valid_person_entity
 
 PLACEHOLDER_REGEX = re.compile(
-    r"^\[(PERSON|EMAIL|PHONE|EMPLOYEE_ID|GOVERNMENT_ID|ADDRESS|DATE_OF_BIRTH|CREDIT_CARD|IP_ADDRESS|OTHER_PII)_\d+\]$"
+    r"^\[(PERSON|EMAIL|PHONE|EMPLOYEE_ID|GOVERNMENT_ID|ADDRESS|DATE_OF_BIRTH|DATE|CREDIT_CARD|IP_ADDRESS|OTHER_PII)_\d+\]$"
 )
 
 NON_ID_WORDS = {
@@ -55,6 +55,38 @@ CONTEXT_RULES = [
         Severity.CRITICAL,
         "Preceded by explicit government/national ID label.",
     ),
+    # PNR (Passenger Name Record)
+    (
+        re.compile(r"(?i)\b(?:PNR(?:\s*(?:No\.?|Number|#))?)\s*[:=-]?\s*([0-9]{10})\b"),
+        PIIType.GOVERNMENT_ID,
+        0.98,
+        Severity.HIGH,
+        "Passenger Name Record (PNR) travel identifier with contextual label.",
+    ),
+    # Transaction ID
+    (
+        re.compile(r"(?i)\b(?:Transaction\s+ID|Txn\s+ID|Booking\s+ID|Order\s+ID)\s*[:=-]?\s*([A-Za-z0-9_-]{8,25})\b"),
+        PIIType.GOVERNMENT_ID,
+        0.98,
+        Severity.HIGH,
+        "Transaction ID identified via contextual label.",
+    ),
+    # Invoice Number
+    (
+        re.compile(r"(?i)\b(?:Invoice(?:\s*(?:No\.?|Number|#))?)\s*[:=-]?\s*([A-Za-z0-9_-]{8,25})\b"),
+        PIIType.GOVERNMENT_ID,
+        0.96,
+        Severity.HIGH,
+        "Invoice number identified via contextual billing header label.",
+    ),
+    # GSTIN (Tax ID)
+    (
+        re.compile(r"(?i)\b(?:GSTIN|GST(?:\s*No\.?)?|Tax\s*ID)\s*[:=-]?\s*([0-9A-Z]{14,16})\b"),
+        PIIType.GOVERNMENT_ID,
+        0.98,
+        Severity.HIGH,
+        "Tax identification number (GSTIN) preceded by contextual label.",
+    ),
     # Date of Birth Cues
     (
         re.compile(r"(?i)\b(?:Date\s+of\s+Birth|DOB|Birth\s+Date|Born\s+on)\s*[:=-]?\s*(\d{1,4}[-/\.]\d{1,2}[-/\.]\d{1,4}|[A-Za-z]+\s+\d{1,2},?\s+\d{4})"),
@@ -62,6 +94,14 @@ CONTEXT_RULES = [
         0.96,
         Severity.MEDIUM,
         "Preceded by explicit Date of Birth keyword label.",
+    ),
+    # Travel / Booking / General Schedule Dates
+    (
+        re.compile(r"(?i)\b(?:(?:Start|Booking|Departure|Arrival|Travel|Journey|Issue|Expiry|Validity|Scheduled)\s*Date|Date\s*of\s*(?:Journey|Travel|Booking|Departure|Arrival)|Departure|Arrival|Booking\s*Date)\s*[:=\*\s-]?\s*(\d{1,2}[-/\.](?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[-/\.]\d{2,4}|\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})"),
+        PIIType.DATE,
+        0.96,
+        Severity.MEDIUM,
+        "Travel, booking, or schedule date preceded by contextual header label.",
     ),
     # Contact / Passenger / Candidate / Person Name Cues (e.g. 'Passenger: Shrish', 'Contact: John Smith', 'Candidate: Vikas Ahankari')
     (
@@ -77,6 +117,14 @@ CONTEXT_RULES = [
         0.95,
         Severity.HIGH,
         "All-caps person name preceded by candidate, passenger, or role label.",
+    ),
+    # Passenger Name in Bullet / Numbered List (e.g. '1. ANIL SHAH', '2. NEETA SHAH')
+    (
+        re.compile(r"(?m)^[ \t]*(?:[0-9]{1,3}[\.\)\-:]|[•\*\-\#])[ \t]+([A-Z][a-zA-Z]+(?:[ \t]+[A-Z][a-zA-Z]+){1,3})[ \t\r]*$"),
+        PIIType.PERSON,
+        0.95,
+        Severity.HIGH,
+        "Passenger or candidate name listed with bullet/numbering prefix in structured record.",
     ),
     # Honorific / Salutation Person Name Cues (e.g. 'Mr. Shrish', 'Dr. Watson', 'Shri Shrish')
     (
@@ -104,11 +152,11 @@ CONTEXT_RULES = [
     ),
     # Address with Label
     (
-        re.compile(r"(?i)\b(?:Address|Billing\s+Address|Home\s+Address|Residence)\s*[:=-]\s*([0-9]{1,5}\s+[A-Za-z0-9\s,.-]{10,60})"),
+        re.compile(r"(?i)\b(?:Address|Billing\s+Address|Home\s+Address|Residence|Permanent\s+Address|Current\s+Address)\s*[:=-][ \t\r\n]*([A-Za-z0-9,.-]+(?:[ \t]+[A-Za-z0-9,.-]+)+)"),
         PIIType.ADDRESS,
         0.88,
         Severity.MEDIUM,
-        "Postal or residential location preceded by address label.",
+        "Postal or physical location preceded by address label.",
     ),
 ]
 
@@ -158,6 +206,10 @@ class ContextDetector:
                         continue
                 elif pii_type == PIIType.EMAIL:
                     if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$", val):
+                        continue
+                elif pii_type == PIIType.ADDRESS:
+                    words = [w.lower() for w in re.findall(r"[A-Za-z]+", val)]
+                    if any(w in {"cgst", "sgst", "igst", "gstin", "tax", "amount", "rate", "na", "none", "null"} for w in words):
                         continue
 
                 conf_level = (

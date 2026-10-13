@@ -18,7 +18,7 @@ from detection.ner_detector import is_valid_person_entity, NON_PERSON_WORDS, ORG
 logger = logging.getLogger(__name__)
 
 PLACEHOLDER_PATTERN = re.compile(
-    r"^\[(PERSON|EMAIL|PHONE|EMPLOYEE_ID|GOVERNMENT_ID|ADDRESS|DATE_OF_BIRTH|CREDIT_CARD|IP_ADDRESS|OTHER_PII)(?:_\d+|_[A-Z0-9]+)?\]$"
+    r"^\[(PERSON|EMAIL|PHONE|EMPLOYEE_ID|GOVERNMENT_ID|ADDRESS|DATE_OF_BIRTH|DATE|CREDIT_CARD|IP_ADDRESS|OTHER_PII)(?:_\d+|_[A-Z0-9]+)?\]$"
 )
 
 
