@@ -186,7 +186,7 @@ class ContextDetector:
                 )
 
         # Document header candidate name context: Primary subject in header context
-        if block_order <= 1 or ("page_1" in location and "block_1" in location):
+        if (block_order <= 1 and ("page_1" in location or not location)) or bool(re.search(r"\bpage_1_block_[01]\b", location)):
             header_name_pattern = re.compile(r"(?m)^[ \t]*([A-Z][a-z]{1,25}(?:\s+[A-Z][a-z]{1,25}){0,3})[ \t\r]*$")
             for match in header_name_pattern.finditer(text):
                 val = match.group(1).strip()

@@ -243,6 +243,8 @@ def test_tech_tools_and_headings_not_flagged_as_person():
         "Cloud Storage",
         "Prodinno Club",
         "Outreach",
+        "Present",
+        "Remote",
         "Kubernetes",
         "Linux",
         "Postman",

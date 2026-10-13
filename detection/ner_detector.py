@@ -68,6 +68,9 @@ NON_PERSON_WORDS = {
     "submitted", "final", "open", "closed", "available", "unavailable", "mandatory", "optional",
     "applicable", "routine", "urgent", "true", "false", "yes", "no", "none", "null", "nil",
     "na", "nan", "unknown", "empty", "blank", "missing",
+    "present", "remote", "hybrid", "onsite", "on-site", "current", "currently", "ongoing", "past",
+    "former", "expected", "fresher", "intern", "internship", "contract", "fulltime", "full-time",
+    "parttime", "part-time", "freelance", "permanent", "temporary", "wfh", "in-office", "office", "workplace",
     # Temporal & calendar terms
     "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
     "january", "february", "march", "april", "may", "june", "july", "august",
@@ -293,7 +296,7 @@ class NERDetector:
 
                 words = re.findall(r"[A-Za-z]+", ent_text)
                 if len(words) == 1:
-                    is_header_candidate = (block_order <= 1 or ("page_1" in location and "block_1" in location))
+                    is_header_candidate = ((block_order <= 1 and ("page_1" in location or not location)) or bool(re.search(r"\bpage_1_block_[01]\b", location)))
                     start_ctx = max(0, start_char - 25)
                     preceding_text = text[start_ctx:start_char].lower()
                     has_person_cue = any(cue in preceding_text for cue in [

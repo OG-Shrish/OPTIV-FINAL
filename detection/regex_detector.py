@@ -15,7 +15,10 @@ EMAIL_REGEX = re.compile(
 
 # Person naming patterns
 NAME_STANDALONE_REGEX = re.compile(
-    r"(?m)^[ \t]*([A-Z][a-z]{1,25}(?:\s+[A-Z][a-z]{1,25}){0,3})[ \t\r]*$"
+    r"(?m)^[ \t]*([A-Z][a-z]{1,25}(?:\s+[A-Z][a-z]{1,25}){1,3})[ \t\r]*$"
+)
+NAME_HEADER_SINGLE_REGEX = re.compile(
+    r"(?m)^[ \t]*([A-Z][a-z]{2,25})[ \t\r]*$"
 )
 NAME_HONORIFIC_REGEX = re.compile(
     r"\b(?:Mr\.?|Mrs\.?|Ms\.?|Miss|Dr\.?|Prof\.?|Shri|Smt\.?)[ \t]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b"
@@ -306,7 +309,7 @@ class RegexDetector:
                 )
 
         # 8. Person Names (Standalone candidate lines, honorific salutations, and proper names)
-        # Dedicated standalone candidate name lines (e.g. 'Shrish', 'Vikas Ahankari', 'Sarah Connor')
+        # Dedicated standalone multi-word name lines (e.g. 'Vikas Ahankari', 'Sarah Connor')
         for match in NAME_STANDALONE_REGEX.finditer(text):
             candidate = match.group(1).strip()
             if placeholder_pattern.match(candidate):
@@ -331,6 +334,35 @@ class RegexDetector:
                         masked_text=mask_sensitive_value(candidate, "PERSON"),
                     )
                 )
+
+        # Single candidate name on primary document header block (e.g. 'Shrish')
+        is_header_block = (block_order <= 1 and ("page_1" in location or not location)) or bool(re.search(r"\bpage_1_block_[01]\b", location))
+        if is_header_block:
+            for match in NAME_HEADER_SINGLE_REGEX.finditer(text):
+                candidate = match.group(1).strip()
+                if placeholder_pattern.match(candidate):
+                    continue
+                if is_valid_person_entity(candidate):
+                    if not any(f.start <= match.start(1) and f.end >= match.end(1) for f in findings if f.pii_type == PIIType.PERSON):
+                        findings.append(
+                            PIIFinding(
+                                finding_id=f"rgx_person_header_{block_order}_{match.start(1)}",
+                                document_id=document_id,
+                                file_name=file_name,
+                                location=location,
+                                block_order=block_order,
+                                start=match.start(1),
+                                end=match.end(1),
+                                text=candidate,
+                                pii_type=PIIType.PERSON,
+                                confidence=0.90,
+                                confidence_level=ConfidenceLevel.HIGH,
+                                detection_method=["REGEX"],
+                                severity=Severity.HIGH,
+                                explanation="Primary candidate header name matched via structural naming pattern.",
+                                masked_text=mask_sensitive_value(candidate, "PERSON"),
+                            )
+                        )
 
         # Honorific / Salutation Person Names (e.g. 'Mr. John Smith', 'Dr. Watson', 'Shri Shrish')
         for match in NAME_HONORIFIC_REGEX.finditer(text):
